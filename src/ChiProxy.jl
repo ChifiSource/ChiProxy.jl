@@ -128,6 +128,7 @@ end
 
 function parse_source(t::Type{Source{IP4}}, raw::AbtractString)
     @warn "could not parse proxy from source $(t.parameters[1])"
+    @info ""
 end
 
 function load_config(raw::String)
@@ -142,26 +143,35 @@ function load_config(raw::String)
     end for pr in split(raw, "|\n")]
 end
 #==
-IP4;|
+IP4;path;127.0.0.1;8000|
 
 ==#
 
-function save_config(routes::Vector{AbstractProxyRoutes})
-
-function start(server_routes::AbstractProxyRoute ...)
-
+function config_str(r::ProxyRoute)
+    "IP4;$(r.path);$(r.ip.ip);$(r.ip.port)"
 end
 
-function start(prox::Pair{Int64, IP4} ...)
-
+function save_config(path::String = pwd() * "/proxy.conf.d", routes::Vector{AbstractProxyRoutes} = ChiProxy.ROUTES)
+    open(path, w) do o::IOStream 
+        for r in routes
+            write(o, config_str(r))
+        end
+    end
+    @info "saved server configuration to $path"
 end
 
-function start(config_path::String)
-
+function start(ip::IP4, server_routes::AbstractProxyRoute ...)
+    ChiProxy.ROUTES = [server_routes ...]
+    start!(ChiProxy, ip)
 end
 
-function start()
+function start(prox::Pair{String, IP4} ...)
+    ChiProxy.ROUTES = [ProxyRoute(pathip[1], pathip[2]) for pathip in prox]
+end
 
+function start(ip::IP4, config_path::String = pwd() * "/proxy.conf.d")
+    ChiProxy.routes = load_config(config_path)
+    start!(ip, server_routes)
 end
 
 
