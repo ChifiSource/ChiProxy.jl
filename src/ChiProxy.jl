@@ -3,7 +3,7 @@ module ChiProxy
 using Toolips
 import Toolips: route!, AbstractConnection, getindex, Route
 
-abstract type AbstractProxyRoute <: Toolips.AbstractRoute end
+abstract type AbstractProxyRoute <: Toolips.AbstractHTTPRoute end
 
 abstract type ProxyMultiRoute <: AbstractProxyRoute end
 
@@ -122,11 +122,11 @@ end
 
 ROUTES = Vector{AbstractProxyRoute}()
 
-function parse_source(t::Type{Source{<:Any}}, raw::AbtractString)
+function parse_source(t::Type{Source{<:Any}}, raw::AbstractString)
     @warn "could not parse proxy from source $(t.parameters[1])"
 end
 
-function parse_source(t::Type{Source{IP4}}, raw::AbtractString)
+function parse_source(t::Type{Source{IP4}}, raw::AbstractString)
     @warn "could not parse proxy from source $(t.parameters[1])"
     @info ""
 end
@@ -151,7 +151,7 @@ function config_str(r::ProxyRoute)
     "IP4;$(r.path);$(r.ip.ip);$(r.ip.port)"
 end
 
-function save_config(path::String = pwd() * "/proxy.conf.d", routes::Vector{AbstractProxyRoutes} = ChiProxy.ROUTES)
+function save_config(path::String = pwd() * "/proxy.conf.d", routes::Vector{AbstractProxyRoute} = ChiProxy.ROUTES)
     open(path, w) do o::IOStream 
         for r in routes
             write(o, config_str(r))
@@ -162,7 +162,7 @@ end
 
 function start(ip::IP4, server_routes::AbstractProxyRoute ...)
     ChiProxy.ROUTES = [server_routes ...]
-    start!(ChiProxy, ip)
+    start!(ChiProxy, ip, router_type = AbstractProxyRoute)
 end
 
 function start(prox::Pair{String, IP4} ...)
@@ -171,7 +171,7 @@ end
 
 function start(ip::IP4, config_path::String = pwd() * "/proxy.conf.d")
     ChiProxy.routes = load_config(config_path)
-    start!(ip, server_routes)
+    start!(ip, server_routes, router_type = AbstractProxyRoute)
 end
 
 
