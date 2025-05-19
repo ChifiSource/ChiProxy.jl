@@ -120,34 +120,52 @@ function source!(c::Toolips.AbstractConnection, source::Source{File})
     write!(c, fl)
 end
 
+ROUTES = Vector{AbstractProxyRoute}()
 
-server1 = proxy_route("192.168.1.15", "127.0.0.1":8000)
-server2 = proxy_route("192.168.1.15", "127.0.0.1":8001)
-
-# 404
-err_404 = Toolips.default_404
-
-balances = proxy_route("192.168.1.15", .5 => server1, .5 => server2, scale = 10)
-
-module TestServer1
-using Toolips
-main = route("/") do c::Connection
-    write!(c, "message from server 1")
+function parse_source(t::Type{Source{<:Any}}, raw::AbtractString)
+    @warn "could not parse proxy from source $(t.parameters[1])"
 end
 
-export main
+function parse_source(t::Type{Source{IP4}}, raw::AbtractString)
+    @warn "could not parse proxy from source $(t.parameters[1])"
 end
 
-module TestServer2
-using Toolips
-main = route("/") do c::Connection
-    write!(c, "message from server 2")
+function load_config(raw::String)
+    [begin
+        tend = findfirst(";", pr)
+        if isnothing(tend)
+            throw("not a valid configuration")
+        end
+        tend = minimum(tend)
+        T_nstr = pr[1:tend - 1]
+        parse_source(Source{Symbol(T_nstr)}, pr[tend + 1:end])
+    end for pr in split(raw, "|\n")]
+end
+#==
+IP4;|
+
+==#
+
+function save_config(routes::Vector{AbstractProxyRoutes})
+
+function start(server_routes::AbstractProxyRoute ...)
+
 end
 
-export main
+function start(prox::Pair{Int64, IP4} ...)
+
 end
 
-export balances
+function start(config_path::String)
+
+end
+
+function start()
+
+end
+
+
+export ROUTES
 end
 
 
