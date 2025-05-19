@@ -175,7 +175,7 @@ function start(ip::IP4, config_path::String = pwd() * "/proxy.conf.d")
 end
 
 
-export ROUTES
+export ROUTES, proxy_route
 end
 
 
