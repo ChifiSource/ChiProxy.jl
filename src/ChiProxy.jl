@@ -51,7 +51,7 @@ function route!(c::Toolips.AbstractConnection, pr::AbstractProxyRoute)
             headers[:X_Forwarded_For] = client_ip
         end
          response = HTTP.request("POST", target_url, headers, body)
-         respond!(c, response)
+         Toolips.respond!(c, response)
     end
 end
 
