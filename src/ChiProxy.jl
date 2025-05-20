@@ -1,6 +1,7 @@
 
 module ChiProxy
 using Toolips
+using Toolips.HTTP
 import Toolips: route!, AbstractConnection, getindex, Route
 
 abstract type AbstractProxyRoute <: Toolips.AbstractHTTPRoute end
@@ -37,7 +38,21 @@ mutable struct SourceRoute{T <: AbstractConnection, SOURCE <: Any} <: AbstractSo
 end
 
 function route!(c::Toolips.AbstractConnection, pr::AbstractProxyRoute)
-    Toolips.proxy_pass!(c, "http://$(string(pr.ip))" * get_route(c))
+    target_url = "http://$(string(pr.ip))" * c.stream.message.target
+    if get_method(c) == "GET"
+        Toolips.proxy_pass!(c, target_url)
+    else
+        body = Toolips.get_post(c)
+        headers = Dict(Symbol(k) => v for (k, v) in c.stream.message.headers)
+        client_ip = Toolips.get_ip(c)
+        if haskey(headers, :X_Forwarded_For)
+            headers[:X_Forwarded_For] *= ", $client_ip"
+        else
+            headers[:X_Forwarded_For] = client_ip
+        end
+         response = HTTP.request("POST", target_url, headers, body)
+         respond!(c, response)
+    end
 end
 
 route!(c::Connection, vec::Vector{<:AbstractProxyRoute}) = begin
