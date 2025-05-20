@@ -37,7 +37,7 @@ mutable struct SourceRoute{T <: AbstractConnection, SOURCE <: Any} <: AbstractSo
 end
 
 function route!(c::Toolips.AbstractConnection, pr::AbstractProxyRoute)
-    Toolips.proxy_pass!(c, "http://$(string(pr.ip))")
+    Toolips.proxy_pass!(c, "http://$(string(pr.ip))" * get_route(c))
 end
 
 route!(c::Connection, vec::Vector{<:AbstractProxyRoute}) = begin
@@ -96,7 +96,7 @@ function source(path::String, to::IP4)
 end
 
 function source!(c::Toolips.AbstractConnection, source::Source{IP4})
-    Toolips.proxy_pass!(c, "http://$(string(source[:ip]))")
+    Toolips.proxy_pass!(c, "http://$(string(source[:ip]))" * get_route(c))
 end
 
 function source(path::String, to::Toolips.AbstractRoute)
