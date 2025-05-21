@@ -38,18 +38,19 @@ mutable struct SourceRoute{T <: AbstractConnection, SOURCE <: Any} <: AbstractSo
 end
 
 function route!(c::Toolips.AbstractConnection, pr::AbstractProxyRoute)
-    target_url = "http://$(string(pr.ip))" * c.stream.message.target
+    client_ip = Toolips.get_ip(c)
+    target_url = "http://$(string(pr.ip))" * c.stream.message.target * "&from=$(client_ip)"
     if get_method(c) == "GET"
         Toolips.proxy_pass!(c, target_url)
     else
+        @info "sending "
         body = Toolips.get_post(c)
         headers = Dict(Symbol(k) => v for (k, v) in c.stream.message.headers)
-        client_ip = Toolips.get_ip(c)
-        if haskey(headers, :X_Forwarded_For)
-            headers[:X_Forwarded_For] *= "$client_ip"
-        else
-            headers[:X_Forwarded_For] = client_ip
+        f = findfirst(h -> h[1] == "X-Forwarded-For", headers)
+        if ~(isnothing(f))
+            deleteat!(headers, f)
         end
+        push!(headers, "X-Forwarded-For" => client_ip)
          response = HTTP.request("POST", target_url, headers, body)
          Toolips.respond!(c, response)
     end
