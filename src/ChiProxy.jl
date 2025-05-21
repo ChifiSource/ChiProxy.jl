@@ -41,7 +41,7 @@ function route!(c::Toolips.AbstractConnection, pr::AbstractProxyRoute)
     client_ip = Toolips.get_ip(c)
     target_url = "http://$(string(pr.ip))" * c.stream.message.target
     headers = c.stream.message.headers
-    f = findfirst(h -> h[1] == "X-Forwarded-For", headers)
+    f = findfirst(h -> contains(h[1], "X-Forwarded-For"), headers)
     if ~(isnothing(f))
         deleteat!(headers, f)
     end
