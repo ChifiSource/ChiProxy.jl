@@ -3,6 +3,8 @@ module ChiProxy
 using Toolips
 using Toolips.HTTP
 import Toolips: route!, AbstractConnection, getindex, Route
+using Toolips.Sockets
+using MbedTLS
 
 abstract type AbstractProxyRoute <: Toolips.AbstractHTTPRoute end
 
@@ -14,6 +16,41 @@ mutable struct BalancedMultiRoute <: ProxyMultiRoute
     loads::Vector{Float64}
     status::Pair{Int64, Int64}
     scale::Int64
+end
+
+function load_cert_and_key(cert_path, key_path)
+    crt = MbedTLS.crt_parse_file(cert_path)
+    pkctx = MbedTLS.parse_keyfile(key_path)
+    return crt, pkctx
+end
+
+function start_tls_server(cert_path, key_path)
+	crt, pkctx = load_cert_and_key(cert_path, key_path)
+	conf = MbedTLS.SSLConfig(true) 
+	MbedTLS.config_defaults!(conf)
+	MbedTLS.rng!(conf, MbedTLS.CtrDrbg())
+	MbedTLS.own_cert!(conf, crt, pkctx)
+	server = listen(443)
+	@async while true
+		client_sock = accept(server)
+		@async begin
+			ctx = MbedTLS.SSLContext()
+			MbedTLS.setup!(ctx, conf)
+			MbedTLS.set_bio!(ctx, client_sock)
+			MbedTLS.handshake(ctx)
+			handle_client_tls(ctx)
+		end
+	end
+end
+
+function handle_client_tls(ctx)
+	req = String(readavailable(ctx))
+	method, path = match(r"^([A-Z]+) ([^ ]+)", req).captures
+	headers = Dict("User-Agent" => "TLSProxy")
+	resp = HTTP.request(method, "https://httpbin.org$path", headers)
+	write(ctx, "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\r\n")
+	write(ctx, resp.body)
+	close(ctx)
 end
 
 abstract type AbstractSource end
@@ -177,8 +214,19 @@ function save_config(path::String = pwd() * "/proxy.conf.d", routes::Vector{Abst
     @info "saved server configuration to $path"
 end
 
-function start(ip::IP4, server_routes::AbstractProxyRoute ...)
+function start(ip::IP4, server_routes::AbstractProxyRoute ...; TLS::Bool = false, 
+    cert_path::String = "", key_path::String = "")
     ChiProxy.ROUTES = [server_routes ...]
+    if TLS
+        if cert_path == "" || key_path == ""
+            @warn "TLS is set to true, but no 'cert_path` or `key_path` provided"
+            @info "if you are on Unix, perhaps the following may help you..."
+            @info "openssl req -x509 -newkey rsa:4096 -keyout key.pem -out cert.pem -days 365 -nodes"
+            @warn "(and then ChiProxy.start(..., key_path = \"key.pem\", cert_path = \"cert.pem\", SSL = true))"
+            throw("TLS is set to true, but no 'cert_path` or `key_path` provided")
+        end
+        start_tls_server(cert_path, key_path)
+    end
     start!(ChiProxy, ip, router_type = AbstractProxyRoute)
 end
 
