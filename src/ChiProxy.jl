@@ -4,7 +4,6 @@ using Toolips
 using Toolips.HTTP
 import Toolips: route!, AbstractConnection, getindex, Route
 using Toolips.Sockets
-using MbedTLS
 
 abstract type AbstractProxyRoute <: Toolips.AbstractHTTPRoute end
 
@@ -18,29 +17,23 @@ mutable struct BalancedMultiRoute <: ProxyMultiRoute
     scale::Int64
 end
 
+#==
+Potential SSL implementation for future.
+==#
+
 function load_cert_and_key(cert_path, key_path)
-    crt = MbedTLS.crt_parse_file(cert_path)
-    pkctx = MbedTLS.parse_keyfile(key_path)
-    return crt, pkctx
+  #  crt = MbedTLS.crt_parse_file(cert_path)
+   # pkctx = MbedTLS.parse_keyfile(key_path)
+   # return crt, pkctx
 end
 
-function start_tls_server(cert_path, key_path)
-	crt, pkctx = load_cert_and_key(cert_path, key_path)
-	conf = MbedTLS.SSLConfig(true) 
-	MbedTLS.config_defaults!(conf)
-	MbedTLS.rng!(conf, MbedTLS.CtrDrbg())
-	MbedTLS.own_cert!(conf, crt, pkctx)
-	server = listen(443)
-	@async while true
-		client_sock = accept(server)
-		@async begin
-			ctx = MbedTLS.SSLContext()
-			MbedTLS.setup!(ctx, conf)
-			MbedTLS.set_bio!(ctx, client_sock)
-			MbedTLS.handshake(ctx)
-			handle_client_tls(ctx)
-		end
-	end
+function start_tls_server(cert_path::AbstractString, key_path::AbstractString)
+    port = 443
+	crt, key = load_cert_and_key(cert_path, key_path)
+    @async HTTP.serve(HTTP.Router() do req::HTTP.Request
+        HTTP.Response(200, "hello")
+    end, "127.0.0.1", 443;
+    ssl_config = HTTP.SSLConfig(cert_path, key_path))
 end
 
 function handle_client_tls(ctx)
@@ -82,7 +75,6 @@ function route!(c::Toolips.AbstractConnection, pr::AbstractProxyRoute)
     if ~(isnothing(f))
         deleteat!(headers, f)
     end
-    @info client_ip
     push!(headers, "X-Forwarded-For" => client_ip)
     response = nothing
     if get_method(c) == "GET"
@@ -198,7 +190,6 @@ function load_config(raw::String)
 end
 #==
 IP4;path;127.0.0.1;8000|
-
 ==#
 
 function config_str(r::ProxyRoute)
@@ -214,10 +205,14 @@ function save_config(path::String = pwd() * "/proxy.conf.d", routes::Vector{Abst
     @info "saved server configuration to $path"
 end
 
-function start(ip::IP4, server_routes::AbstractProxyRoute ...; TLS::Bool = false, 
-    cert_path::String = "", key_path::String = "")
+function start(ip::IP4 = "127.0.0.1":8000, server_routes::AbstractProxyRoute ...; TLS::Bool = false, 
+    cert_path::String = "", key_path::String = "", args ...)
     ChiProxy.ROUTES = [server_routes ...]
+    start!(ChiProxy, ip, router_type = AbstractProxyRoute)
     if TLS
+        @warn "SSL, unfortunately, has yet to be implemented and will likely require a new C wrapper to fully implement."
+        @info "The typical use-case for `ChiProxy` lies *beneath* an exterior proxy, usually `nginx` -- giving us tighter, Julia-bound control of our proxy sources from that server."
+        throw("TLS servers have yet to be implemented. Native Julia packages have yet to support this possibility (to developer's knowledge)")
         if cert_path == "" || key_path == ""
             @warn "TLS is set to true, but no 'cert_path` or `key_path` provided"
             @info "if you are on Unix, perhaps the following may help you..."
@@ -227,11 +222,10 @@ function start(ip::IP4, server_routes::AbstractProxyRoute ...; TLS::Bool = false
         end
         start_tls_server(cert_path, key_path)
     end
-    start!(ChiProxy, ip, router_type = AbstractProxyRoute)
 end
 
-function start(prox::Pair{String, IP4} ...)
-    ChiProxy.ROUTES = [ProxyRoute(pathip[1], pathip[2]) for pathip in prox]
+function start(source_ip::IP4, prox::Pair{String, IP4} ...; args ...)
+    start(source_ip, [ProxyRoute(pathip[1], pathip[2]) for pathip in prox] ...)
 end
 
 function start(ip::IP4, config_path::String = pwd() * "/proxy.conf.d")
