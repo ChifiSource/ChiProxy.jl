@@ -39,7 +39,7 @@ end
 
 function route!(c::Toolips.AbstractConnection, pr::AbstractProxyRoute)
     client_ip = Toolips.get_ip(c)
-    target_url = "http://$(string(pr.ip))" * c.stream.message.target * "&from=$(client_ip)"
+    target_url = "http://$(string(pr.ip))" * c.stream.message.target
     if get_method(c) == "GET"
         Toolips.proxy_pass!(c, target_url)
     else
