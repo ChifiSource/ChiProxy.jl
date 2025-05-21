@@ -46,7 +46,7 @@ function route!(c::Toolips.AbstractConnection, pr::AbstractProxyRoute)
         headers = Dict(Symbol(k) => v for (k, v) in c.stream.message.headers)
         client_ip = Toolips.get_ip(c)
         if haskey(headers, :X_Forwarded_For)
-            headers[:X_Forwarded_For] *= ", $client_ip"
+            headers[:X_Forwarded_For] *= "$client_ip"
         else
             headers[:X_Forwarded_For] = client_ip
         end
