@@ -48,7 +48,7 @@ function route!(c::Toolips.AbstractConnection, pr::AbstractProxyRoute)
     push!(headers, "X-Forwarded-For" => client_ip)
     if get_method(c) == "GET"
         response = HTTP.request("GET", target_url, headers)
-        Toolips.respond!(c, response)
+        write!(c, String(response.body))
     else
         body = Toolips.get_post(c)
         response = HTTP.request("POST", target_url, headers, body)
