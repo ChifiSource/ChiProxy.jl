@@ -47,14 +47,14 @@ function route!(c::Toolips.AbstractConnection, pr::AbstractProxyRoute)
     end
     @info client_ip
     push!(headers, "X-Forwarded-For" => client_ip)
+    response = nothing
     if get_method(c) == "GET"
         response = HTTP.request("GET", target_url, headers)
-        write!(c, String(response.body))
     else
         body = Toolips.get_post(c)
         response = HTTP.request("POST", target_url, headers, body)
-        Toolips.respond!(c, response)
     end
+    write!(c, String(response.body))
 end
 
 route!(c::Connection, vec::Vector{<:AbstractProxyRoute}) = begin
