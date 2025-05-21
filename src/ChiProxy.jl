@@ -45,6 +45,7 @@ function route!(c::Toolips.AbstractConnection, pr::AbstractProxyRoute)
     if ~(isnothing(f))
         deleteat!(headers, f)
     end
+    @info client_ip
     push!(headers, "X-Forwarded-For" => client_ip)
     if get_method(c) == "GET"
         response = HTTP.request("GET", target_url, headers)
