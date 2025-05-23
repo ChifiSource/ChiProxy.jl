@@ -70,7 +70,7 @@ end
 function route!(c::Toolips.AbstractConnection, pr::AbstractProxyRoute)
     client_ip = Toolips.get_ip(c)
     target_url = "http://$(string(pr.ip))" * c.stream.message.target
-    headers = c.stream.message.headers
+    headers = get_headers(c)
     f = findfirst(h -> contains(h[1], "X-Forwarded-For"), headers)
     if ~(isnothing(f))
         deleteat!(headers, f)
@@ -87,10 +87,6 @@ function route!(c::Toolips.AbstractConnection, pr::AbstractProxyRoute)
 end
 
 route!(c::Connection, vec::Vector{<:AbstractProxyRoute}) = begin
-    if Toolips.get_route(c) == "/favicon.ico"
-        write!(c, "no icon here, fool")
-        return
-    end
     selected_route::String = get_host(c)
     if selected_route in vec
         route!(c, vec[selected_route])
