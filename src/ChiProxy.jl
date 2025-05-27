@@ -18,7 +18,7 @@ mutable struct BalancedMultiRoute <: ProxyMultiRoute
 end
 
 #==
-Potential SSL implementation for future.
+Potential SSL implementation for future. (not currently possible in julia)
 ==#
 
 function load_cert_and_key(cert_path, key_path)
@@ -49,7 +49,7 @@ end
 abstract type AbstractSource end
 
 struct Source{T <: Any} <: AbstractSource
-    sourceinfo::Dict{Symbol, <:Any}
+    sourceinfo::Dict{Symbol, Any}
 end
 
 getindex(src::Source{<:Any}, info::Symbol) = getindex(src.sourceinfo, info)
@@ -67,10 +67,10 @@ mutable struct SourceRoute{T <: AbstractConnection, SOURCE <: Any} <: AbstractSo
     src::Source{SOURCE}
 end
 
-function route!(c::Toolips.AbstractConnection, pr::AbstractProxyRoute)
-    client_ip = Toolips.get_ip(c)
-    target_url = "http://$(string(pr.ip))" * c.stream.message.target
-    headers = get_headers(c)
+function standard_proxy!(c::Toolips.AbstractConnection, to::IP4)
+    client_ip::String = Toolips.get_ip(c)
+    target_url = "http://$(string(to))" * c.stream.message.target
+    headers = Toolips.get_headers(c)
     f = findfirst(h -> contains(h[1], "X-Forwarded-For"), headers)
     if ~(isnothing(f))
         deleteat!(headers, f)
@@ -83,7 +83,13 @@ function route!(c::Toolips.AbstractConnection, pr::AbstractProxyRoute)
         body = Toolips.get_post(c)
         response = HTTP.request("POST", target_url, headers, body)
     end
-    write!(c, String(response.body))
+    bod = String(response.body)
+    write!(c, bod)
+    bod::String
+end
+
+function route!(c::Toolips.AbstractConnection, pr::AbstractProxyRoute)
+    standard_proxy!(c, pr.ip)
 end
 
 route!(c::Connection, vec::Vector{<:AbstractProxyRoute}) = begin
@@ -132,9 +138,20 @@ proxy_route(path::String, routes::Pair{Float64, <:AbstractProxyRoute} ...; scale
 end
 
 function source(path::String, to::IP4)
-    srcinfo::Dict{Symbol, IP4} = Dict{Symbol, IP4}(:ip => to)
+    srcinfo::Dict{Symbol, Any} = Dict{Symbol, Any}(:ip => to)
     src = Source{IP4}(srcinfo)
     SourceRoute{Connection, IP4}(path, src)
+end
+
+function backup_proxy_route(f::Function, path::String, to::IP4, component::Any ...; mobile::Bool = false)
+    srcinfo::Dict{Symbol, Any} = Dict{Symbol, Any}(:to => to, :saved => Dict{String, String}(), 
+    :f => f, :comp => [component ...])
+    T = if mobile
+        Toolips.MthrowobileConnection
+    else
+        Connection
+    end
+    SourceRoute{T, :backup}(path, Source{:backup}(srcinfo))
 end
 
 function source!(c::Toolips.AbstractConnection, source::Source{IP4})
@@ -160,6 +177,21 @@ end
 function source!(c::Toolips.AbstractConnection, source::Source{File})
     fl = Toolips.File(source[:f])
     write!(c, fl)
+end
+
+function source!(c::Toolips.AbstractConnection, source::Source{:backup})
+    try
+        bod = standard_proxy!(c, source[:to])
+        if ~(haskey(source[:saved], c.stream.message.target))
+            push!(source[:saved], c.stream.message.target => bod)
+        end
+    catch
+        if haskey(source[:saved], c.stream.message.target)
+            write!(c, source[:saved][c.stream.message.target], source[:comp] ...)
+        else
+            source[:f](c)
+        end
+    end
 end
 
 ROUTES = Vector{AbstractProxyRoute}()
