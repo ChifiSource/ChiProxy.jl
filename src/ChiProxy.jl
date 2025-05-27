@@ -2,7 +2,7 @@
 module ChiProxy
 using Toolips
 using Toolips.HTTP
-import Toolips: route!, AbstractConnection, getindex, Route
+import Toolips: route!, AbstractConnection, getindex, Route, setindex!
 using Toolips.Sockets
 
 abstract type AbstractProxyRoute <: Toolips.AbstractHTTPRoute end
@@ -53,6 +53,8 @@ struct Source{T <: Any} <: AbstractSource
 end
 
 getindex(src::Source{<:Any}, info::Symbol) = getindex(src.sourceinfo, info)
+
+setindex!(src::Source{<:Any}, val::Any, name::Symbol) = src.sourceinfo[name] = val 
 
 
 mutable struct ProxyRoute{T <: AbstractConnection} <: AbstractProxyRoute
@@ -147,7 +149,7 @@ function backup_proxy_route(f::Function, path::String, to::IP4, component::Any .
     srcinfo::Dict{Symbol, Any} = Dict{Symbol, Any}(:to => to, :saved => Dict{String, String}(), 
     :f => f, :comp => [component ...])
     T = if mobile
-        Toolips.MthrowobileConnection
+        Toolips.MobileConnection
     else
         Connection
     end
