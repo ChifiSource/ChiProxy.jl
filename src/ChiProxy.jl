@@ -146,7 +146,7 @@ function source(path::String, to::IP4)
 end
 
 function backup_proxy_route(f::Function, path::String, to::IP4, component::Any ...; mobile::Bool = false)
-    srcinfo::Dict{Symbol, Any} = Dict{Symbol, Any}(:to => to, :saved => Dict{String, String}(), 
+    srcinfo::Dict{Symbol, Any} = Dict{Symbol, Any}(:to => to, :dead => false, :saved => Dict{String, String}(), 
     :f => f, :comp => [component ...])
     T = if mobile
         Toolips.MobileConnection
@@ -182,16 +182,40 @@ function source!(c::Toolips.AbstractConnection, source::Source{File})
 end
 
 function source!(c::Toolips.AbstractConnection, source::Source{:backup})
+    dead = source[:dead]
+    if dead
+        if haskey(source[:saved], c.stream.message.target)
+            write!(c, source[:saved][c.stream.message.target], source[:comp] ...)
+        else
+            source[:f](c)
+        end
+        return
+    end
+
     try
         bod = standard_proxy!(c, source[:to])
         if ~(haskey(source[:saved], c.stream.message.target))
             push!(source[:saved], c.stream.message.target => bod)
         end
     catch
+        dead = true
         if haskey(source[:saved], c.stream.message.target)
             write!(c, source[:saved][c.stream.message.target], source[:comp] ...)
         else
             source[:f](c)
+        end
+        if !haskey(source.sourceinfo, :ping_task) || istaskdone(source[:ping_task])
+            source[:ping_task] = @async begin
+                while source[:dead]
+                    try
+                        bod = standard_proxy!(c, source[:to])
+                        source[:dead] = false
+                    catch e
+            
+                    end
+                    sleep(300)  # wait 5 minutes
+                end
+            end
         end
     end
 end
