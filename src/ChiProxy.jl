@@ -191,14 +191,13 @@ function source!(c::Toolips.AbstractConnection, source::Source{:backup})
         end
         return
     end
-
     try
         bod = standard_proxy!(c, source[:to])
         if ~(haskey(source[:saved], c.stream.message.target))
             push!(source[:saved], c.stream.message.target => bod)
         end
     catch
-        dead = true
+        source[:dead] = true
         if haskey(source[:saved], c.stream.message.target)
             write!(c, source[:saved][c.stream.message.target], source[:comp] ...)
         else
