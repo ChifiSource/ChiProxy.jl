@@ -213,7 +213,7 @@ function source!(c::Toolips.AbstractConnection, source::Source{:backup})
                         # redundant break (for clarity and punctuation, loop ends here.)
                         break
                     catch e
-
+                        @warn e
                     end
                     sleep(100)
                 end
