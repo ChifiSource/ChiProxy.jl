@@ -86,12 +86,12 @@ function standard_proxy!(c::Toolips.AbstractConnection, to::IP4)
         response = HTTP.request("POST", target_url, headers, body)
     end
     bod = String(response.body)
-    write!(c, bod)
     bod::String
 end
 
 function route!(c::Toolips.AbstractConnection, pr::AbstractProxyRoute)
-    standard_proxy!(c, pr.ip)
+    bod = standard_proxy!(c, pr.ip)
+    write!(c, bod)
 end
 
 route!(c::Connection, vec::Vector{<:AbstractProxyRoute}) = begin
@@ -197,12 +197,19 @@ function source!(c::Toolips.AbstractConnection, source::Source{:backup})
         if ~(haskey(source[:saved], TARGET)) && ~(contains(replace(bod, " " => ""), "location.href='$TARGET'")) && get_method(c) != "POST"
             push!(source[:saved], c.stream.message.target => bod)
         end
+        if ~(eof(c))
+            return
+        end
+        write!(c, bod)
     catch e
         source[:dead] = true
-        if haskey(source[:saved], c.stream.message.target)
-            write!(c, source[:saved][c.stream.message.target], source[:comp] ...)
-        else
-            source[:f](c)
+        while eof(c.stream)
+            if haskey(source[:saved], c.stream.message.target)
+                write!(c, source[:saved][c.stream.message.target], source[:comp] ...)
+            else
+                source[:f](c)
+            end
+            break
         end
         if !haskey(source.sourceinfo, :ping_task) || istaskdone(source[:ping_task])
             source[:ping_task] = @async begin
