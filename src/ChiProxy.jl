@@ -196,7 +196,7 @@ function source!(c::Toolips.AbstractConnection, source::Source{:backup})
         if ~(haskey(source[:saved], c.stream.message.target))
             push!(source[:saved], c.stream.message.target => bod)
         end
-    catch
+    catch e
         source[:dead] = true
         if haskey(source[:saved], c.stream.message.target)
             write!(c, source[:saved][c.stream.message.target], source[:comp] ...)
@@ -208,11 +208,14 @@ function source!(c::Toolips.AbstractConnection, source::Source{:backup})
                 while source[:dead]
                     try
                         bod = standard_proxy!(c, source[:to])
+                        delete!(source.sourceinfo, :ping_task)
                         source[:dead] = false
+                        # redundant break (for clarity and punctuation, loop ends here.)
+                        break
                     catch e
-            
+
                     end
-                    sleep(300)  # wait 5 minutes
+                    sleep(100)
                 end
             end
         end
