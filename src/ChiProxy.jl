@@ -194,7 +194,7 @@ function source!(c::Toolips.AbstractConnection, source::Source{:backup})
     try
         bod = standard_proxy!(c, source[:to])
         TARGET = c.stream.message.target
-        if ~(haskey(source[:saved], TARGET)) || ~(contains(replace(bod, " " => ""), "location.href='$TARGET'"))
+        if ~(haskey(source[:saved], TARGET)) && ~(contains(replace(bod, " " => ""), "location.href='$TARGET'")) && get_method(c) != "POST"
             push!(source[:saved], c.stream.message.target => bod)
         end
     catch e
