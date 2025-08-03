@@ -208,7 +208,6 @@ function source!(c::Toolips.AbstractConnection, source::Source{:backup})
                 while source[:dead]
                     try
                         bod = standard_proxy!(c, source[:to])
-                        delete!(source.sourceinfo, :ping_task)
                         source[:dead] = false
                         # redundant break (for clarity and punctuation, loop ends here.)
                         break
@@ -264,7 +263,7 @@ end
 function start(ip::IP4 = "127.0.0.1":8000, server_routes::AbstractProxyRoute ...; TLS::Bool = false, 
     cert_path::String = "", key_path::String = "", args ...)
     ChiProxy.ROUTES = [server_routes ...]
-    start!(ChiProxy, ip, router_type = AbstractProxyRoute)
+    start!(ChiProxy, ip, router_type = AbstractProxyRoute; args ...)
     if TLS
         @warn "SSL, unfortunately, has yet to be implemented and will likely require a new C wrapper to fully implement."
         @info "The typical use-case for `ChiProxy` lies *beneath* an exterior proxy, usually `nginx` -- giving us tighter, Julia-bound control of our proxy sources from that server."
@@ -281,12 +280,12 @@ function start(ip::IP4 = "127.0.0.1":8000, server_routes::AbstractProxyRoute ...
 end
 
 function start(source_ip::IP4, prox::Pair{String, IP4} ...; args ...)
-    start(source_ip, [ProxyRoute(pathip[1], pathip[2]) for pathip in prox] ...)
+    start(source_ip, [ProxyRoute(pathip[1], pathip[2]) for pathip in prox] ...; args ...)
 end
 
-function start(ip::IP4, config_path::String = pwd() * "/proxy.conf.d")
+function start(ip::IP4, config_path::String = pwd() * "/proxy.conf.d"; args ...)
     ChiProxy.routes = load_config(config_path)
-    start!(ip, server_routes, router_type = AbstractProxyRoute)
+    start!(ip, server_routes, router_type = AbstractProxyRoute; args ...)
 end
 
 
