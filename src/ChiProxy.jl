@@ -193,7 +193,8 @@ function source!(c::Toolips.AbstractConnection, source::Source{:backup})
     end
     try
         bod = standard_proxy!(c, source[:to])
-        if ~(haskey(source[:saved], c.stream.message.target))
+        TARGET = c.stream.message.target
+        if ~(haskey(source[:saved], TARGET)) || ~(contains(replace(bod, " " => ""), "location.href='$TARGET'"))
             push!(source[:saved], c.stream.message.target => bod)
         end
     catch e
