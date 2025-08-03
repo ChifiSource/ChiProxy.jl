@@ -208,7 +208,7 @@ function source!(c::Toolips.AbstractConnection, source::Source{:backup})
             source[:ping_task] = @async begin
                 while source[:dead]
                     try
-                        bod = standard_proxy!(c, source[:to])
+                        bod = get(source[:to])
                         source[:dead] = false
                         # redundant break (for clarity and punctuation, loop ends here.)
                         break
