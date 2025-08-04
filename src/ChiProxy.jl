@@ -199,7 +199,7 @@ function source!(c::Toolips.AbstractConnection, source::Source{:backup})
         if ~(haskey(source[:saved], TARGET)) && ~(contains(replace(bod, " " => ""), "location.href='$TARGET'")) && get_method(c) != "POST"
             push!(source[:saved], c.stream.message.target => bod)
         end
-        if ~(eof(c))
+        if ~(eof(c.stream))
             return
         end
         write!(c, bod)
