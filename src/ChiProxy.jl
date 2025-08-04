@@ -202,14 +202,13 @@ function source!(c::Toolips.AbstractConnection, source::Source{:backup})
         end
         write!(c, bod)
     catch e
-        source[:dead] = true
-        while eof(c.stream)
-            if haskey(source[:saved], c.stream.message.target)
-                write!(c, source[:saved][c.stream.message.target], source[:comp] ...)
-            else
-                source[:f](c)
-            end
-            break
+        if ~(typeof(e) != HTTP.Exceptions.ConnectError)
+            source[:dead] = true
+        end
+        if haskey(source[:saved], c.stream.message.target)
+            write!(c, source[:saved][c.stream.message.target], source[:comp] ...)
+        else
+            source[:f](c)
         end
         if !haskey(source.sourceinfo, :ping_task) || istaskdone(source[:ping_task])
             source[:ping_task] = @async begin
