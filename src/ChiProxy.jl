@@ -193,7 +193,9 @@ function source!(c::Toolips.AbstractConnection, source::Source{:backup})
     end
     try
         bod = standard_proxy!(c, source[:to])
+        
         TARGET = c.stream.message.target
+        @info "got response $TARGET"
         if ~(haskey(source[:saved], TARGET)) && ~(contains(replace(bod, " " => ""), "location.href='$TARGET'")) && get_method(c) != "POST"
             push!(source[:saved], c.stream.message.target => bod)
         end
@@ -202,6 +204,7 @@ function source!(c::Toolips.AbstractConnection, source::Source{:backup})
         end
         write!(c, bod)
     catch e
+        @info "caught error and dead $e"
         if ~(typeof(e) != HTTP.Exceptions.ConnectError)
             source[:dead] = true
         end
@@ -213,6 +216,7 @@ function source!(c::Toolips.AbstractConnection, source::Source{:backup})
         if !haskey(source.sourceinfo, :ping_task) || istaskdone(source[:ping_task])
             source[:ping_task] = @async begin
                 while source[:dead]
+                    @info "pinged reconnect"
                     try
                         bod = get(source[:to])
                         source[:dead] = false
