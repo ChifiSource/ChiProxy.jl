@@ -1,11 +1,19 @@
 name = "ChiProxy"
 uuid = "ab0dfc58-5d1e-41aa-81db-6420f49808fb"
-authors = ["emmac <emmacboudreau@gmail.com>"]
 version = "0.1.0"
+authors = ["emmac <emmacboudreau@gmail.com>"]
 
 [deps]
+Libdl = "8f399da3-3557-5675-b5ff-fb832c97cbdb"
+MbedTLS = "739be429-bea8-5141-9913-cc70e7f3736d"
+OpenSSL = "4d8831e6-92b7-49fb-bdf8-b643e874388c"
 Revise = "295af30f-e4ad-537b-8983-00126c2a3abe"
+TOML = "fa267f1f-6049-4f14-aa54-33bafae1ed76"
 Toolips = "a47e2ad8-fcf7-417c-9746-32b9bdf220bd"
 
 [compat]
+Libdl = "1.11.0"
+MbedTLS = "1.1.9"
+OpenSSL = "1.5.0"
+TOML = "1.0.3"
 Toolips = "0.3.8"
