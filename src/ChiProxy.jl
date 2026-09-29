@@ -84,6 +84,8 @@ function standard_proxy!(c::Toolips.AbstractConnection, to::IP4)
     else
         body = Toolips.get_post(c)
         response = HTTP.request("POST", target_url, headers, body)
+        write!(c, response.body)
+        return
     end
     respond!(c, response, headers ...)
 end
