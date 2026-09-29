@@ -85,13 +85,11 @@ function standard_proxy!(c::Toolips.AbstractConnection, to::IP4)
         body = Toolips.get_post(c)
         response = HTTP.request("POST", target_url, headers, body)
     end
-    bod = String(response.body)
-    bod::String
+    respond!(c, response, headers ...)
 end
 
 function route!(c::Toolips.AbstractConnection, pr::AbstractProxyRoute)
-    bod = standard_proxy!(c, pr.ip)
-    write!(c, bod)
+    standard_proxy!(c, pr.ip)
 end
 
 route!(c::Connection, vec::Vector{<:AbstractProxyRoute}) = begin
